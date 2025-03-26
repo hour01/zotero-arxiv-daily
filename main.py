@@ -24,7 +24,7 @@ def get_zotero_corpus(id:str,key:str) -> list[dict]:
     corpus = [c for c in corpus if c['data']['abstractNote'] != '']
     def get_collection_path(col_key:str) -> str:
         if p := collections[col_key]['data']['parentCollection']:
-            return get_collection_path(p) + ' / ' + collections[col_key]['data']['name']
+            return get_collection_path(p) + '//' + collections[col_key]['data']['name']
         else:
             return collections[col_key]['data']['name']
     for c in corpus:
@@ -33,18 +33,12 @@ def get_zotero_corpus(id:str,key:str) -> list[dict]:
     return corpus
 
 def filter_corpus(corpus:list[dict], pattern:str) -> list[dict]:
-    _,filename = mkstemp()
-    with open(filename,'w') as file:
-        file.write(pattern)
-    matcher = parse_gitignore(filename,base_dir='./')
     new_corpus = []
     for c in corpus:
-        match_results = [matcher(p) for p in c['paths']]
-        if not any(match_results):
+        match_results = [pattern in p for p in c['paths']]
+        if any(match_results):  # 改成只保留匹配的
             new_corpus.append(c)
-    os.remove(filename)
     return new_corpus
-
 
 def get_arxiv_paper(query:str, debug:bool=False) -> list[ArxivPaper]:
     client = arxiv.Client(num_retries=10,delay_seconds=10)
