@@ -24,7 +24,7 @@ def get_zotero_corpus(id:str,key:str) -> list[dict]:
     corpus = [c for c in corpus if c['data']['abstractNote'] != '']
     def get_collection_path(col_key:str) -> str:
         if p := collections[col_key]['data']['parentCollection']:
-            return get_collection_path(p) + ' / ' + collections[col_key]['data']['name']
+            return get_collection_path(p) + '//' + collections[col_key]['data']['name']
         else:
             return collections[col_key]['data']['name']
     for c in corpus:
@@ -33,16 +33,17 @@ def get_zotero_corpus(id:str,key:str) -> list[dict]:
     return corpus
 
 def filter_corpus(corpus:list[dict], pattern:str) -> list[dict]:
-    _,filename = mkstemp()
-    with open(filename,'w') as file:
-        file.write(pattern)
-    matcher = parse_gitignore(filename,base_dir='./')
+    # _,filename = mkstemp()
+    # with open(filename,'w') as file:
+    #     file.write(pattern)
+    # matcher = parse_gitignore(filename,base_dir='./')
     new_corpus = []
     for c in corpus:
-        match_results = [matcher(p) for p in c['paths']]
-        if not any(match_results):
+        # match_results = [matcher(p) for p in c['paths']]
+        match_results = [pattern in p for p in c['paths']]
+        if any(match_results): # 改成只保留匹配的
             new_corpus.append(c)
-    os.remove(filename)
+    # os.remove(filename)
     return new_corpus
 
 
@@ -102,7 +103,8 @@ if __name__ == '__main__':
     
     add_argument('--zotero_id', type=str, help='Zotero user ID')
     add_argument('--zotero_key', type=str, help='Zotero API key')
-    add_argument('--zotero_ignore',type=str,help='Zotero collection to ignore, using gitignore-style pattern.')
+    # add_argument('--zotero_ignore',type=str,help='Zotero collection to ignore, using gitignore-style pattern.')
+    add_argument('--zotero_selection',type=str,help='Zotero collection to selction, e.g. LLM//Alignment.')
     add_argument('--send_empty', type=bool, help='If get no arxiv paper, send empty email',default=False)
     add_argument('--max_paper_num', type=int, help='Maximum number of papers to recommend',default=100)
     add_argument('--arxiv_query', type=str, help='Arxiv search query')
@@ -157,9 +159,9 @@ if __name__ == '__main__':
     logger.info("Retrieving Zotero corpus...")
     corpus = get_zotero_corpus(args.zotero_id, args.zotero_key)
     logger.info(f"Retrieved {len(corpus)} papers from Zotero.")
-    if args.zotero_ignore:
-        logger.info(f"Ignoring papers in:\n {args.zotero_ignore}...")
-        corpus = filter_corpus(corpus, args.zotero_ignore)
+    if args.zotero_selection:
+        logger.info(f"Ignoring papers in:\n {args.zotero_selection}...")
+        corpus = filter_corpus(corpus, args.zotero_selection)
         logger.info(f"Remaining {len(corpus)} papers after filtering.")
     logger.info("Retrieving Arxiv papers...")
     papers = get_arxiv_paper(args.arxiv_query, args.debug)
